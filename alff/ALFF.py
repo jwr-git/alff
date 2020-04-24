@@ -134,7 +134,7 @@ class ALFF:
 
         """
         try:
-            df = pd.read_csv(self.input, sep = self.isep)
+            df = pd.read_csv(self.input, sep=bytes(self.isep, "utf-8").decode("unicode_escape"))
         except FileNotFoundError:
             self.log("Error: File not found \"{}\". Please double check path.".format(self.input), display=True)
             sys.exit(1)
