@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import sys
+import os
+import logging
 import asyncio
 import argparse
 import requests
@@ -17,7 +18,7 @@ class ALFF:
     arguments and their defaults.
     """
 
-    def __init__(self):
+    def __init__(self, logger=None):
         parser = argparse.ArgumentParser(description = "This script will call the NCBI variation API to append allele frequencies garnered from their ALFA project.\nFor more information, please see https://api.ncbi.nlm.nih.gov/variation/v0.")
         
         parser.add_argument("-i", 
@@ -85,26 +86,16 @@ class ALFF:
                             help = "How many attempts should be tried if the request is met with a timeout or other related error.",
                             required = False,
                             default = 5)
-        parser.add_argument("-v",
-                            "--verbose",
-                            type = int,
-                            help = "(Boolean) Will print verbose warnings and messages. This will be automatically written to 'eaf.log' in the folder where this is run.",
-                            required = False,
-                            default = 0)
+        #parser.add_argument("-log",
+        #                    "--logfile",
+        #                    type = str,
+        #                    help = "Logging messages will be output to this file, defaults to 'alff.log' in the folder where this is run.",
+        #                    required = False,
+        #                    default = 'alff.log')
         
         argument = parser.parse_args()
         
-        # New log file
-        f = open("eaf.log", "w+")
-        f.close()
-        
-        if argument.input:
-            self.input = argument.input
-        else:
-            self.log("Error: Input file is required.", display=True)
-            parser.print_help()
-            sys.exit(1)
-            
+        self.input = argument.input            
         self.isep = argument.isep
         self.osep = argument.osep
         self.output = argument.output
@@ -117,8 +108,15 @@ class ALFF:
         self.workers = argument.workers
         self.timeout = argument.timeout
         self.attempts = argument.attempts
-        self.verbose = argument.verbose
         
+        if not logger:
+            self.logger = logging.getLogger(__name__)
+            self.logger.setLevel(logging.DEBUG)
+            fh = logging.FileHandler('alff.log')
+            fh.setLevel(logging.DEBUG)
+            self.logger.addHandler(fh)
+        else:
+            self.logger = logger
         self.d = {} # Temp holder for results
         self.run()
         
@@ -135,20 +133,20 @@ class ALFF:
         """
         try:
             df = pd.read_csv(self.input, sep=bytes(self.isep, "utf-8").decode("unicode_escape"))
-        except FileNotFoundError:
-            self.log("Error: File not found \"{}\". Please double check path.".format(self.input), display=True)
-            sys.exit(1)
+        except Exception as e:
+            self.logger.error(e)
+            raise e
             
         if (self.snp_col != "" and self.snp_col not in df.columns) or (self.snp_col == ""):
             self.snp_col = df.columns[0]
-            self.log("Warning: Defaulting to first column as SNP column.", display=True)
+            self.logger.warning("Defaulting to first column as SNP column.")
             
         if (self.allele_col != "" and self.allele_col not in df.columns) or (self.allele_col == ""):
             self.allele_col = df.columns[1]
             if df[self.allele_col].dtype != str:
-                self.log("Error: Allele column is non-string. Please check the correct column is being read.", display=True)
-                sys.exit(1)
-            self.log("Warning: Defaulting to second column as allele column.", display=True)
+                self.logger.error("Allele column is non-string. Please check the correct column is being read.")
+                raise TypeError("Allele column is non-string. Please check the correct column is being read.")
+            self.logger.warning("Defaulting to second column as allele column.")
             
         df['freq'] = -1
         
@@ -162,8 +160,8 @@ class ALFF:
         try:
             df.to_csv(self.output, sep=bytes(self.osep, "utf-8").decode("unicode_escape"), na_rep=None, index=False)
         except Exception as e:
-            self.log("Error {}: Could not output file at \"{}\".".format(e, self.output), display=True)
-            sys.exit(1)
+            self.logger.error(e)
+            raise e
             
     def fetch(self, session, snp, allele):
         """
@@ -205,7 +203,7 @@ class ALFF:
                     try:
                         res = res[list(res.keys())[0]]['counts'][self.organism]['allele_counts'][self.population]
                     except KeyError:
-                        self.log("Warning: SNP {} could not be found. Likely due to organism ({})/population ({}) not found.".format(snp, self.organism, self.population), display=False)
+                        self.logger.info("SNP {} could not be found. Likely due to organism ({})/population ({}) not found.".format(snp, self.organism, self.population), display=False)
                         self.d[snp] = -1
                         return
         
@@ -221,7 +219,7 @@ class ALFF:
                     return
             except requests.exceptions.Timeout:
                 self.d[snp] = -1
-                self.log("Timeout for {}, attempt: {}".format(snp, _), display=False)
+                self.logger.info("Timeout for {}, attempt: {}".format(snp, _))
                 pass
             continue
             
@@ -252,111 +250,6 @@ class ALFF:
                 
                 for response in await asyncio.gather(*tasks):
                     pass
-            
-    def log(self, msg, display=False):
-        """
-        Logs a message.
-
-        Parameters
-        ----------
-        msg : str
-            Message to be output to user.
-        display : bool, optional
-            Should this be printed as well as writen to the log file.
-            The default is False.
-
-        Returns
-        -------
-        None.
-
-        """
-        display = (self.verbose == 0 or display == True)
-        if display:
-            print(msg)
-            
-        try:
-            f = open("eaf.log", 'a')
-            f.write(msg+"\n")
-            f.close()
-        except:
-            pass
-"""        
-def main(input_f, 
-            isep="\t", 
-            output_f="alff_output.txt", 
-            osep="\t",
-            snp_col="",
-            allele_col="",
-            organism="PRJNA507278",
-            population="SAMN10492695",
-            workers=5,
-            timeout=5,
-            attempts=5,
-            verbose=False):
-"""
-"""
-    This function will allow use of this module as an import.
-    Wraps arguments into sys.argv and passes these to the ALFF class
-    call and returns as normal.
-
-    Parameters
-    ----------
-    input_f : str
-        Path to input file.
-    isep : str, optional
-        Separator of input file. The default is "\t".
-    output_f : str, optional
-        Path to output file. The default is "alff_output.txt".
-    osep : str, optional
-        Separator of output file. The default is "\t".
-    snp_col : str, optional
-        Name of the SNP column in the input file. If no name is given, this
-        will default to the first column.
-    allele_col : str, optional
-        Name of the allele column in the input file for which frequencies will
-        be found. If no name is given, this will default to the second column.
-    organism : str, optional
-        Organism for whose allele frequencies to search. Please see 
-        https://www.ncbi.nlm.nih.gov/bioproject/browse for more details. 
-        The default is "PRJNA507278" (or human).
-    population : str, optional
-        Population subtype to use. Please see
-        https://www.ncbi.nlm.nih.gov/snp/docs/gsr/alfa/ for more details. 
-        The default is "SAMN10492695" which is European.
-    workers : int, optional
-        How many requests to send at once. Be mindful to not overload servers 
-        by setting too high. Setting this lower will take longer but is less 
-        likely to timeout. The default is 5.
-    timeout : int, optional
-        (Seconds) How long to wait before a request is considered as timed out.
-        The default is 5.
-    attempts : int, optional
-        How many attempts should be tried if the request is met with a timeout 
-        or other related error. The default is 5.
-    verbose : bool, optional
-        (Boolean) Will print verbose warnings and messages. This will be 
-        automatically written to 'eaf.log' in the folder where this is run. 
-        The default is False.
-
-    Returns
-    -------
-    ALFF class.
-
-"""
-"""
-    args = ['-i', input_f,
-            '-is', isep,
-            '-o', output_f,
-            '-os', osep,
-            '-snp', snp_col,
-            '-allele', allele_col,
-            '-org', organism,
-            '-pop', population,
-            '-w', workers,
-            '-t', timeout,
-            '-a', attempts,
-            '-v', verbose]
-"""
 
 if __name__ == "__main__":
     # If this script is run in iPython there is an error that will cause the
@@ -368,12 +261,22 @@ if __name__ == "__main__":
     except NameError:
         pass
     
+    # Logging
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    try:
+        os.remove('alff.log')
+    except OSError:
+        pass
+    fh = logging.FileHandler('alff.log')
+    fh.setLevel(logging.DEBUG)
+    logger.addHandler(fh)
+    
     _start_time = default_timer()
     
-    app = ALFF()
+    app = ALFF(logger)
     app.run()
     
     _time_taken = "{:5.2f}s".format(default_timer() - _start_time)
-    app.log("Info: Time taken to run: {}".format(_time_taken), display=True)
-    sys.exit(0)
+    logger.info("Time taken to run: {}".format(_time_taken))
     
