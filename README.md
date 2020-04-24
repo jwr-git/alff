@@ -8,13 +8,22 @@ This simple Python script uses NCBI's [variation service](https://api.ncbi.nlm.n
 This tool requires Python 3 to be installed. A list of dependencies is given in `requirements.txt`.
 
 ### Installation
-Simple download or clone this repo like you would normally. No further installation required. 
+
+Simply download or clone this repo like you would normally. No further installation required. 
 
 ### Usage
 ```
 ALFF.py -h
 ```
 lists a detailed breakdown of arguments which may be used. This tool requires only a single argument for the input file, though it is recommended you observe the rest of the available options to tailor the tool to your data.
+
+### Test Data
+
+Within the `test_data` directory is a small set of SNPs in a text file for which you can demonstrate how the tool works. The test data may be run using the following command:
+```
+cd alff
+python alff/ALFF.py -i test_data/test.txt -is " " -o "test_data/test_output.txt" -os " " -snp MarkerName -allele EffectAllele
+```
 
 ## License
 
