@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import sys
 import asyncio
 import argparse
@@ -158,10 +159,11 @@ class ALFF:
         
         df['freq'] = df['MarkerName'].map(self.d)
         df['freq'] = df['freq'].fillna(-1)
+        
         try:
-            df.to_csv(self.output, sep = self.osep, na_rep=None, index=False)
-        except:
-            self.log("Error: Could not output file at \"{}\". Please check you have the permissions for this directory".format(self.output), display=True)
+            df.to_csv(self.output, sep=self.osep, na_rep=None, index=False)
+        except Exception as e:
+            self.log("Error {}: Could not output file at \"{}\".".format(e, self.output), display=True)
             sys.exit(1)
             
     def fetch(self, session, snp, allele):
