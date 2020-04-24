@@ -160,7 +160,7 @@ class ALFF:
         df['freq'] = df['freq'].fillna(-1)
         
         try:
-            df.to_csv(self.output, sep=self.osep, na_rep=None, index=False)
+            df.to_csv(self.output, sep=bytes(self.osep, "utf-8").decode("unicode_escape"), na_rep=None, index=False)
         except Exception as e:
             self.log("Error {}: Could not output file at \"{}\".".format(e, self.output), display=True)
             sys.exit(1)
