@@ -21,8 +21,7 @@ lists a detailed breakdown of arguments which may be used. This tool requires on
 
 Within the `test_data` directory is a small set of SNPs in a text file for which you can demonstrate how the tool works. The test data may be run using the following command:
 ```
-cd alff
-python alff/ALFF.py -i test_data/test.txt -is " " -o "test_data/test_output.txt" -os " " -snp MarkerName -allele EffectAllele
+python alff/ALFF.py -i test_data/test.txt -is " " -o test_data/test_output.txt -os " " -snp MarkerName -allele EffectAllele
 ```
 
 ## License
