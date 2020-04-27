@@ -154,7 +154,7 @@ class ALFF:
         future = asyncio.ensure_future(self.get_data_asynchronous(df))
         loop.run_until_complete(future)
         
-        df['freq'] = df['MarkerName'].map(self.d)
+        df['freq'] = df[self.snp_col].map(self.d)
         df['freq'] = df['freq'].fillna(-1)
         
         try:
